@@ -13,7 +13,7 @@ import numpy as np
 from sqlalchemy.orm import Session
 
 from filingsdesk.config import get_settings
-from filingsdesk.rag.embeddings import get_embedder
+from filingsdesk.rag.embeddings import STOPWORDS, TOKEN_RE, get_embedder
 from filingsdesk.rag.guardrails import Confidence, assess_confidence
 from filingsdesk.rag.retrieval import RetrievedChunk, retrieve
 
@@ -61,10 +61,21 @@ def _best_sentences(
     embedder = get_embedder()
     question_vec = embedder.embed([question])[0]
     sentence_vecs = embedder.embed([sentence for sentence, _ in candidates])
-    scores = sentence_vecs @ question_vec
+    cosines = sentence_vecs @ question_vec
+    # Pivoted length correction: pure cosine over-rewards very short sentences (one
+    # matching token in a 4-token fragment beats a fact-dense sentence). Weight by a
+    # saturating function of content-token count for *ranking*; confidence still uses
+    # the raw cosine so guardrail floors keep a stable meaning.
+    token_counts = np.array(
+        [
+            min(sum(1 for w in TOKEN_RE.findall(s.lower()) if w not in STOPWORDS), 30)
+            for s, _ in candidates
+        ]
+    )
+    scores = cosines * np.sqrt(token_counts)
     order = np.argsort(-scores)[:max_sentences]
     best = [candidates[i] for i in sorted(order)]  # keep document order for readability
-    return best, float(scores.max())
+    return best, float(cosines.max())
 
 
 def answer_question(session: Session, question: str, top_k: int | None = None) -> AnswerResult:
@@ -75,7 +86,7 @@ def answer_question(session: Session, question: str, top_k: int | None = None) -
     flagged = [chunk for chunk in chunks if chunk.injection_flags]
     chunks = [chunk for chunk in chunks if not chunk.injection_flags]
 
-    selected, best_sentence_score = _best_sentences(question, chunks, max_sentences=3)
+    selected, best_sentence_score = _best_sentences(question, chunks, max_sentences=4)
     confidence = assess_confidence(
         best_sentence_score if selected else None,
         settings.similarity_refusal_floor,

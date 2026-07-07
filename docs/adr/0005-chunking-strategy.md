@@ -17,10 +17,12 @@ answer context.
 
 ## Decision
 Implement **both** fixed-size and section-aware behind one interface, choose per config,
-and let the **eval harness decide**: the harness reports retrieval hit-rate per chunking
-strategy. Default is section-aware (with fixed-size re-splitting of oversized sections and
-sentence-boundary overlap), which won on the fixture corpus — see eval results in README.
-Every chunk keeps `(filing_id, section, chunk_index)` so answers can cite their source.
+and let the **eval harness decide**: `filingsdesk-evals --compare-chunking` reports
+retrieval hit-rate per strategy. Measured on the fixture corpus (top-5): tied at 1.00 at
+the default 1600-char size; at 300-char chunks section-aware keeps 1.00 while fixed drops
+to 0.96 by splitting facts across windows. Default is section-aware — it never scored
+worse, and its chunks carry `(filing_id, section, chunk_index)` labels, which makes
+citations human-meaningful ("Item 1A — Risk Factors") rather than byte offsets.
 
 ## Trade-offs
 Section detection is heuristic (regex on ITEM headings) and will mis-split unusual

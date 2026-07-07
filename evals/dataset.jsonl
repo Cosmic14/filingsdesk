@@ -1,0 +1,30 @@
+{"question": "How fast did Apple's Services segment net sales grow?", "expected_keywords": ["12 percent"], "source_accession": "0000000001-26-000001"}
+{"question": "What were Apple's total net sales in fiscal 2025?", "expected_keywords": ["402.1"], "source_accession": "0000000001-26-000001"}
+{"question": "What was Apple's gross margin in fiscal 2025?", "expected_keywords": ["46.1"], "source_accession": "0000000001-26-000001"}
+{"question": "How much additional share repurchase authorisation did Apple's board approve?", "expected_keywords": ["90 billion"], "source_accession": "0000000001-26-000001"}
+{"question": "Where is Apple's global supply chain concentrated?", "expected_keywords": ["Asia", "China"], "source_accession": "0000000001-26-000001"}
+{"question": "How much did Azure and other cloud services revenue grow?", "expected_keywords": ["29 percent"], "source_accession": "0000000002-26-000002"}
+{"question": "What was Microsoft's capital expenditure on datacenters for AI services?", "expected_keywords": ["55 billion"], "source_accession": "0000000002-26-000002"}
+{"question": "What was Microsoft's total revenue for fiscal 2025?", "expected_keywords": ["261.8"], "source_accession": "0000000002-26-000002"}
+{"question": "How many full-time employees does Microsoft have?", "expected_keywords": ["228,000"], "source_accession": "0000000002-26-000002"}
+{"question": "What constrains Microsoft's datacenter expansion?", "expected_keywords": ["electrical power", "GPUs"], "source_accession": "0000000002-26-000002"}
+{"question": "What was NVIDIA's Data Center revenue in fiscal 2025?", "expected_keywords": ["115.2"], "source_accession": "0000000003-26-000003"}
+{"question": "What customer concentration risk does NVIDIA disclose?", "expected_keywords": ["36 percent"], "source_accession": "0000000003-26-000003"}
+{"question": "What was NVIDIA's gross margin for fiscal 2025?", "expected_keywords": ["73.0"], "source_accession": "0000000003-26-000003"}
+{"question": "How do United States export controls affect NVIDIA's sales?", "expected_keywords": ["China"], "source_accession": "0000000003-26-000003"}
+{"question": "How many developers use NVIDIA's CUDA software platform?", "expected_keywords": ["five million"], "source_accession": "0000000003-26-000003"}
+{"question": "What was Amazon Web Services operating income?", "expected_keywords": ["39.8"], "source_accession": "0000000004-26-000004"}
+{"question": "How fast did Amazon's advertising services revenue grow?", "expected_keywords": ["20 percent"], "source_accession": "0000000004-26-000004"}
+{"question": "What was Amazon's free cash flow for the trailing twelve months?", "expected_keywords": ["48.3"], "source_accession": "0000000004-26-000004"}
+{"question": "What antitrust litigation does Amazon face over its marketplace?", "expected_keywords": ["Federal Trade Commission"], "source_accession": "0000000004-26-000004"}
+{"question": "What is Project Kuiper and what risk does Amazon flag about it?", "expected_keywords": ["satellite", "broadband"], "source_accession": "0000000004-26-000004"}
+{"question": "What were Google Cloud revenues and how fast did they grow?", "expected_keywords": ["43.2", "31 percent"], "source_accession": "0000000005-26-000005"}
+{"question": "What were Alphabet's traffic acquisition costs in 2025?", "expected_keywords": ["54.3"], "source_accession": "0000000005-26-000005"}
+{"question": "What did the district court find in United States v. Google?", "expected_keywords": ["monopoly"], "source_accession": "0000000005-26-000005"}
+{"question": "What were YouTube advertising revenues in 2025?", "expected_keywords": ["36.1"], "source_accession": "0000000005-26-000005"}
+{"question": "How much were Alphabet's Other Bets losses?", "expected_keywords": ["4.1"], "source_accession": "0000000005-26-000005"}
+{"question": "Who won the football world cup last year?", "expect_refusal": true}
+{"question": "How do I train a golden retriever puppy?", "expect_refusal": true}
+{"question": "Explain photosynthesis in simple terms.", "expect_refusal": true}
+{"question": "What is the capital of France?", "expect_refusal": true}
+{"question": "Give me a recipe for chocolate cake.", "expect_refusal": true}
