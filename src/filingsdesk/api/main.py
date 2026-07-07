@@ -16,6 +16,7 @@ from filingsdesk.logging_setup import configure_logging
 
 log = structlog.get_logger("filingsdesk.api")
 
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     configure_logging()

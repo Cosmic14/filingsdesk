@@ -53,6 +53,10 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "W"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's dependency-injection idiom: Depends()/Query() in defaults is intentional.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
@@ -65,6 +69,7 @@ source = ["src/filingsdesk"]
 omit = [
     "src/filingsdesk/dashboard/*",
     "src/filingsdesk/db/migrations/*",
+    "src/filingsdesk/ingestion/scheduler.py",  # blocking APScheduler loop, runtime glue
 ]
 
 [tool.coverage.report]

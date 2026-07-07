@@ -17,7 +17,9 @@ class Chunk:
     section: str | None = None
 
 
-def chunk_fixed(text: str, chunk_size: int, overlap: int, section: str | None = None) -> list[Chunk]:
+def chunk_fixed(
+    text: str, chunk_size: int, overlap: int, section: str | None = None
+) -> list[Chunk]:
     """Sliding window with overlap; window ends snap back to the last whitespace."""
     if chunk_size <= 0:
         raise ValueError("chunk_size must be positive")

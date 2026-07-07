@@ -137,9 +137,7 @@ def fetch_recent_filings(
                     accession_no=row["accession_no"],
                     symbol=symbol,
                     form_type=row["form_type"],
-                    filed_at=dt.datetime.fromisoformat(row["filing_date"]).replace(
-                        tzinfo=dt.UTC
-                    ),
+                    filed_at=dt.datetime.fromisoformat(row["filing_date"]).replace(tzinfo=dt.UTC),
                     title=row["description"],
                     body=body,
                     source_url=doc_url,

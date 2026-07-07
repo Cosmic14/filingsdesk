@@ -86,9 +86,7 @@ class Filing(Base):
 
 class FilingChunk(Base):
     __tablename__ = "filing_chunks"
-    __table_args__ = (
-        UniqueConstraint("filing_id", "chunk_index", name="uq_chunks_filing_index"),
-    )
+    __table_args__ = (UniqueConstraint("filing_id", "chunk_index", name="uq_chunks_filing_index"),)
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     filing_id: Mapped[int] = mapped_column(ForeignKey("filings.id", ondelete="CASCADE"))

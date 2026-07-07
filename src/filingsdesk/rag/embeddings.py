@@ -18,8 +18,53 @@ TOKEN_RE = re.compile(r"[a-z0-9]+")
 # Function words carry no retrieval signal but match every document, inflating the
 # similarity of unrelated questions and blunting the out-of-corpus refusal guardrail.
 STOPWORDS = frozenset(
-    "a an and are as at be by did do does for from had has have how i in is it its of on or "
-    "our s t that the their this to was we were what when where which who why will with you".split()
+    [
+        "a",
+        "an",
+        "and",
+        "are",
+        "as",
+        "at",
+        "be",
+        "by",
+        "did",
+        "do",
+        "does",
+        "for",
+        "from",
+        "had",
+        "has",
+        "have",
+        "how",
+        "i",
+        "in",
+        "is",
+        "it",
+        "its",
+        "of",
+        "on",
+        "or",
+        "our",
+        "s",
+        "t",
+        "that",
+        "the",
+        "their",
+        "this",
+        "to",
+        "was",
+        "we",
+        "were",
+        "what",
+        "when",
+        "where",
+        "which",
+        "who",
+        "why",
+        "will",
+        "with",
+        "you",
+    ]
 )
 
 
@@ -47,9 +92,7 @@ class HashingEmbedder:
         return word
 
     def _features(self, text: str) -> list[str]:
-        words = [
-            self._stem(w) for w in TOKEN_RE.findall(text.lower()) if w not in STOPWORDS
-        ]
+        words = [self._stem(w) for w in TOKEN_RE.findall(text.lower()) if w not in STOPWORDS]
         bigrams = [f"{a}_{b}" for a, b in zip(words, words[1:], strict=False)]
         # Char trigrams give partial-match robustness (plurals, inflections) but only
         # for substantive words — short-word trigrams are pure cross-document noise.

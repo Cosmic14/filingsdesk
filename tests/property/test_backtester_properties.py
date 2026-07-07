@@ -27,9 +27,7 @@ def to_series(values: list[float]) -> pd.Series:
 @settings(deadline=None)
 def test_long_flat_equity_always_positive(values, signal_bits):
     prices = to_series(values)
-    signal = pd.Series(
-        [1.0 if b else 0.0 for b in signal_bits[: len(values)]], index=prices.index
-    )
+    signal = pd.Series([1.0 if b else 0.0 for b in signal_bits[: len(values)]], index=prices.index)
     result = run_backtest(prices, signal, cost_bps=10.0)
     assert (result.equity_curve > 0).all()
 
@@ -47,19 +45,19 @@ def test_flat_strategy_preserves_capital(values):
 @settings(deadline=None)
 def test_higher_costs_never_help(values, signal_bits):
     prices = to_series(values)
-    signal = pd.Series(
-        [1.0 if b else 0.0 for b in signal_bits[: len(values)]], index=prices.index
-    )
+    signal = pd.Series([1.0 if b else 0.0 for b in signal_bits[: len(values)]], index=prices.index)
     cheap = run_backtest(prices, signal, cost_bps=0.0)
     dear = run_backtest(prices, signal, cost_bps=50.0)
     assert dear.metrics["final_equity"] <= cheap.metrics["final_equity"] + 1e-9
 
 
-@given(values=st.lists(
-    st.floats(min_value=10.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
-    min_size=6,
-    max_size=60,
-))
+@given(
+    values=st.lists(
+        st.floats(min_value=10.0, max_value=1000.0, allow_nan=False, allow_infinity=False),
+        min_size=6,
+        max_size=60,
+    )
+)
 @settings(deadline=None)
 def test_future_bars_cannot_change_the_past(values):
     """Causality end-to-end: strategy + engine output for bar t is invariant to bar t+1."""

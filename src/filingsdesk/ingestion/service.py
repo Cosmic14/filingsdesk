@@ -29,9 +29,7 @@ def upsert_instrument(session: Session, symbol: str, name: str | None = None) ->
         .on_conflict_do_nothing(index_elements=["symbol"])
     )
     session.execute(stmt)
-    return session.scalars(
-        select(Instrument).where(Instrument.symbol == symbol.upper())
-    ).one()
+    return session.scalars(select(Instrument).where(Instrument.symbol == symbol.upper())).one()
 
 
 def ingest_prices(session: Session, symbol: str, bars: list[PriceBar]) -> int:
@@ -108,9 +106,7 @@ def ingest_filings(session: Session, records: list[FilingRecord]) -> int:
                 )
             )
         ingested += 1
-        log.info(
-            "ingest.filing_added", accession=record.accession_no, chunks=len(chunks)
-        )
+        log.info("ingest.filing_added", accession=record.accession_no, chunks=len(chunks))
     return ingested
 
 
