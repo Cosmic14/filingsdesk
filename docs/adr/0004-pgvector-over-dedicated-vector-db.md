@@ -20,8 +20,9 @@ HNSW index). This is also one more reason Postgres won ADR-0001.
 
 **Fallback:** local dev machines may lack the extension (it isn't bundled with Homebrew
 Postgres 16). The Alembic migration checks `pg_available_extensions` and skips the vector
-column when absent; the ORM marks the column `deferred` so normal queries never touch it.
-A `NumpyVectorStore` then serves retrieval by embedding chunks in memory (cached to disk).
+column when absent; the column is left unmapped in the ORM (the pgvector store reads and
+writes it via SQL), so application code never depends on its existence.
+A `NumpyVectorStore` then serves retrieval by embedding chunks in memory.
 Backend selection is automatic with an env override (`VECTOR_BACKEND=pgvector|numpy`).
 CI and docker-compose run the real thing via the `pgvector/pgvector:pg16` image, so the
 pgvector path is exercised on every push.

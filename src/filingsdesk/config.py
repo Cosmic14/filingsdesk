@@ -22,10 +22,12 @@ class Settings(BaseSettings):
     chunk_size_chars: int = 1600
     chunk_overlap_chars: int = 200
     retrieval_top_k: int = 5
-    # Cosine similarity below this → refuse as out-of-corpus; below flag → low-confidence.
-    similarity_refusal_floor: float = 0.10
-    similarity_confidence_floor: float = 0.25
-    numpy_store_cache_dir: str = "data/vector_cache"
+    # Confidence is judged on best-*sentence* similarity (chunk-level cosine is diluted
+    # by chunk length). Below refusal floor → refuse as out-of-corpus; below the
+    # confidence floor → answer but flag low confidence. Floors chosen empirically on
+    # the fixture corpus; the eval harness re-validates them in CI.
+    similarity_refusal_floor: float = 0.15
+    similarity_confidence_floor: float = 0.30
 
     # Ingestion
     sec_user_agent: str = "FilingsDesk research project dasabhigyan14@gmail.com"

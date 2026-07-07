@@ -1,13 +1,12 @@
 """Relational schema: instruments 1→N prices, instruments 1→N filings 1→N chunks.
 
-The `filing_chunks.embedding` column is added by a conditional migration and mapped
-`deferred` so sessions never SELECT it implicitly — local databases without pgvector
-simply don't have the column (ADR-0004).
+The `filing_chunks.embedding` vector column is added by a conditional migration and is
+deliberately NOT mapped here: local databases without pgvector don't have it, and the
+pgvector store reads/writes it via SQL (ADR-0004). The ORM never touches it.
 """
 
 import datetime as dt
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import (
     BigInteger,
     Date,
@@ -20,7 +19,7 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-from sqlalchemy.orm import DeclarativeBase, Mapped, deferred, mapped_column, relationship
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 EMBEDDING_DIM = 384
 
@@ -96,7 +95,5 @@ class FilingChunk(Base):
     chunk_index: Mapped[int]
     section: Mapped[str | None] = mapped_column(String(128))
     text: Mapped[str] = mapped_column(Text)
-    # Populated only when pgvector is available; never loaded implicitly (ADR-0004).
-    embedding = deferred(mapped_column(Vector(EMBEDDING_DIM), nullable=True))
 
     filing: Mapped[Filing] = relationship(back_populates="chunks")
