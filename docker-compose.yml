@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: filingsdesk
+      POSTGRES_PASSWORD: filingsdesk
+      POSTGRES_DB: filingsdesk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U filingsdesk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      target: api
+    environment: &app-env
+      DATABASE_URL: postgresql+psycopg://filingsdesk:filingsdesk@postgres:5432/filingsdesk
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build:
+      context: .
+      target: ingestion
+    environment:
+      <<: *app-env
+      # Fixtures make `docker compose up` self-contained (deterministic demo data).
+      # Set to 0 to ingest live yfinance/EDGAR data instead.
+      INGEST_FIXTURES: "1"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  dashboard:
+    build:
+      context: .
+      target: dashboard
+    environment:
+      FILINGSDESK_API_URL: http://api:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
