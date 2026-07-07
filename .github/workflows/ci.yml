@@ -1,0 +1,83 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: filingsdesk
+          POSTGRES_PASSWORD: filingsdesk
+          POSTGRES_DB: filingsdesk_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U filingsdesk"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://filingsdesk:filingsdesk@localhost:5432/filingsdesk_test
+      REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: alembic upgrade head
+      - run: pytest --cov --cov-report=xml --cov-fail-under=80
+      - name: RAG evals
+        run: |
+          filingsdesk-ingest --fixtures
+          filingsdesk-evals --dataset evals/dataset.jsonl --min-hit-rate 0.8 --min-faithfulness 0.9
+
+  build-images:
+    if: github.ref == 'refs/heads/main'
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: api
+          push: true
+          tags: ghcr.io/${{ github.repository }}/api:latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: ingestion
+          push: true
+          tags: ghcr.io/${{ github.repository }}/ingestion:latest
