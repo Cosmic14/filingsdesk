@@ -51,3 +51,20 @@ def test_fixture_filings_load_and_are_labelled_synthetic():
         assert "SYNTHETIC FIXTURE" in record.body
         assert record.accession_no
         assert record.filed_at.tzinfo is not None
+
+
+def test_fixture_filings_load():
+    from filingsdesk.ingestion.filings import load_fixture_filings
+
+    assert len(load_fixture_filings()) == 5
+
+
+def test_missing_fixtures_fail_loudly(tmp_path, monkeypatch):
+    # A wrong path used to glob nothing and ingest zero filings without a word.
+    import pytest
+
+    from filingsdesk.ingestion import filings
+
+    monkeypatch.setattr(filings, "FIXTURES_DIR", tmp_path)
+    with pytest.raises(FileNotFoundError):
+        filings.load_fixture_filings()

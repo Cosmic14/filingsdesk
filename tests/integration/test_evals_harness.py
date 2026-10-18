@@ -23,10 +23,10 @@ def test_eval_metrics_meet_ci_thresholds(db_session):
     db_session.commit()
 
     report = run_evals(db_session, load_dataset(DATASET))
-    assert report.retrieval_hit_rate >= 0.8   # CI gate
-    assert report.faithfulness >= 0.9         # CI gate
-    assert report.keyword_recall >= 0.8       # tracked, not gated
-    assert report.refusal_accuracy >= 0.6     # lexical embedder: honest floor
+    assert report.retrieval_hit_rate >= 0.8  # CI gate
+    assert report.faithfulness >= 0.9  # CI gate
+    assert report.keyword_recall >= 0.8  # tracked, not gated
+    assert report.refusal_accuracy >= 0.6  # lexical embedder: honest floor
     assert report.n_answerable == 25
 
 

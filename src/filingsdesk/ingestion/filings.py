@@ -23,7 +23,12 @@ EDGAR_SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 EDGAR_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 EDGAR_DOC_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession_nodash}/{doc}"
 
-FIXTURES_DIR = Path(__file__).resolve().parents[3] / "data" / "fixtures" / "filings"
+# Source checkout first; an installed wheel lives in site-packages, so containers fall
+# back to the working directory (the Dockerfile copies data/ into /app).
+_SOURCE_FIXTURES = Path(__file__).resolve().parents[3] / "data" / "fixtures" / "filings"
+FIXTURES_DIR = (
+    _SOURCE_FIXTURES if _SOURCE_FIXTURES.is_dir() else Path.cwd() / "data" / "fixtures" / "filings"
+)
 
 
 @dataclass(frozen=True)
@@ -163,4 +168,6 @@ def load_fixture_filings() -> list[FilingRecord]:
                 source_url=data.get("source_url"),
             )
         )
+    if not records:
+        raise FileNotFoundError(f"no fixture filings found in {FIXTURES_DIR}")
     return records

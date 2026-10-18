@@ -107,6 +107,12 @@ def ingest_filings(session: Session, records: list[FilingRecord]) -> int:
             )
         ingested += 1
         log.info("ingest.filing_added", accession=record.accession_no, chunks=len(chunks))
+    if ingested:
+        # pgvector only searches embedded rows, so a filing isn't searchable until this runs.
+        from filingsdesk.rag.store import get_vector_store
+
+        session.flush()
+        get_vector_store().index_pending(session)
     return ingested
 
 
