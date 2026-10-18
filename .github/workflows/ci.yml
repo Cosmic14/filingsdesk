@@ -69,15 +69,17 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      # ghcr.io rejects uppercase repository names (the owner is "Cosmic14").
+      - run: echo "IMAGE_PREFIX=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_ENV"
       - uses: docker/build-push-action@v6
         with:
           context: .
           target: api
           push: true
-          tags: ghcr.io/${{ github.repository }}/api:latest
+          tags: ${{ env.IMAGE_PREFIX }}/api:latest
       - uses: docker/build-push-action@v6
         with:
           context: .
           target: ingestion
           push: true
-          tags: ghcr.io/${{ github.repository }}/ingestion:latest
+          tags: ${{ env.IMAGE_PREFIX }}/ingestion:latest
