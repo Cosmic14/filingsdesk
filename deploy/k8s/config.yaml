@@ -1,0 +1,21 @@
+# Non-secret settings (ConfigMap) vs credentials (Secret). In GKE the Secret would come
+# from Secret Manager via the CSI driver instead of living in the repo.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: filingsdesk-config
+data:
+  REDIS_URL: redis://redis:6379/0
+  INGEST_FIXTURES: "1"
+  FILINGSDESK_API_URL: http://api:8000
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: filingsdesk-db
+type: Opaque
+stringData:
+  POSTGRES_USER: filingsdesk
+  POSTGRES_PASSWORD: filingsdesk   # local lab only
+  POSTGRES_DB: filingsdesk
+  DATABASE_URL: postgresql+psycopg://filingsdesk:filingsdesk@postgres:5432/filingsdesk

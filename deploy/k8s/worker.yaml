@@ -1,0 +1,25 @@
+# No Service: the ingestion worker only talks outwards (to Postgres and the data sources).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: worker}
+  template:
+    metadata:
+      labels: {app: worker}
+    spec:
+      # Compose's depends_on has no Kubernetes equivalent: wait for Postgres explicitly.
+      initContainers:
+        - name: wait-for-postgres
+          image: pgvector/pgvector:pg16
+          command: ["sh", "-c", "until pg_isready -h postgres -U filingsdesk; do sleep 2; done"]
+      containers:
+        - name: worker
+          image: filingsdesk-ingestion:lab2
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef: {name: filingsdesk-config}
+            - secretRef: {name: filingsdesk-db}

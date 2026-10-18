@@ -1,0 +1,10 @@
+# kubectl apply -k deploy/k8s   — the same stack as docker-compose.yml, as Kubernetes objects.
+namespace: filingsdesk
+resources:
+  - namespace.yaml
+  - config.yaml
+  - postgres.yaml
+  - redis.yaml
+  - api.yaml
+  - worker.yaml
+  - dashboard.yaml
