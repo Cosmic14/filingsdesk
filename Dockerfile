@@ -4,13 +4,13 @@ FROM python:3.12-slim AS builder
 WORKDIR /build
 COPY pyproject.toml README.md ./
 COPY src ./src
-RUN pip wheel --no-cache-dir --wheel-dir /wheels ".[dashboard]"
+RUN pip wheel --no-cache-dir --wheel-dir /wheels ".[dashboard,llm]"
 
 FROM python:3.12-slim AS base
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 WORKDIR /app
 COPY --from=builder /wheels /wheels
-RUN pip install --no-cache-dir --no-index --find-links=/wheels filingsdesk[dashboard] \
+RUN pip install --no-cache-dir --no-index --find-links=/wheels filingsdesk[dashboard,llm] \
     && rm -rf /wheels
 # Source tree kept for alembic (script_location) and bundled fixtures/evals.
 COPY alembic.ini ./

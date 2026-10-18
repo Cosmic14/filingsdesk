@@ -105,8 +105,21 @@ The 0.80 refusal accuracy is an honest lexical-embedder failure worth knowing ab
 embedding provider (one config switch, ADR-0006) fixes it; the eval harness is exactly
 what caught it.
 
+**Claude answerer** (`rag/claude_answerer.py`, ADR-0007) — `ANSWER_PROVIDER=claude` plus
+`ANTHROPIC_API_KEY`. Claude returns claims as structured JSON, each with a verbatim quote;
+code checks every quote against its source before the claim is shown, and any API failure
+falls back to the extractive answer. Same eval, measured on Opus 5.5:
+
+| metric | extractive | claude |
+|---|---|---|
+| keyword recall | 0.92 | **1.00** |
+| refusal accuracy | 0.80 | **1.00** |
+| faithfulness / hit rate | 1.00 / 1.00 | **1.00 / 1.00** |
+| cost · latency | free · instant | ~$0.009 per answer · p95 3.5 s |
+
 **Observability** — structured request logs, `/health` (checks the DB), Prometheus
-`/metrics`: request rate/latency by route template, cache hit/miss counters.
+`/metrics`: request rate/latency by route template, cache hit/miss counters, and Claude
+tokens by kind (input, output, cache read/write), latency and answer outcomes.
 
 ## Design decisions
 
@@ -120,6 +133,7 @@ Every significant choice has an ADR written *before* the component:
 | [0004](docs/adr/0004-pgvector-over-dedicated-vector-db.md) | pgvector over a vector DB; numpy fallback |
 | [0005](docs/adr/0005-chunking-strategy.md) | Section-aware chunking — *measured* against fixed-size |
 | [0006](docs/adr/0006-keyless-ai-providers.md) | Keyless-by-default AI providers; extractive answers |
+| [0007](docs/adr/0007-claude-answerer.md) | Claude answerer: the model writes, code verifies every quote |
 
 Full architecture and failure-mode analysis: [docs/design.md](docs/design.md).
 Deployment (compose / Fly.io): [docs/deploy.md](docs/deploy.md).

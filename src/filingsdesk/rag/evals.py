@@ -1,9 +1,11 @@
 """RAG eval harness (run in CI): retrieval hit rate, faithfulness, keyword recall,
 refusal accuracy — plus an in-memory chunking-strategy comparison for ADR-0005.
 
-Faithfulness here is checkable, not vibes: every sentence of an answer must appear
-verbatim in an ingested filing body. The extractive answerer should score 1.0 by
-construction; the metric exists to catch any pipeline change that breaks that guarantee.
+Faithfulness here is checkable, not vibes: every piece of evidence behind an answer must
+appear verbatim in an ingested filing body. For the extractive answerer the evidence is
+the answer itself, so it scores 1.0 by construction; for Claude it is the quote behind
+each claim. Run with ANSWER_PROVIDER=claude to evaluate Claude; token totals and latency
+are printed alongside the scores.
 """
 
 import argparse
@@ -21,7 +23,7 @@ from filingsdesk.db.session import session_scope
 from filingsdesk.rag.answer import answer_question
 from filingsdesk.rag.retrieval import retrieve
 
-MARKER_RE = re.compile(r"\s*\[\d+\]")
+WHITESPACE_RE = re.compile(r"\s+")
 
 
 @dataclass(frozen=True)
@@ -72,7 +74,7 @@ def load_dataset(path: Path) -> list[EvalCase]:
 
 
 def run_evals(session: Session, cases: list[EvalCase], top_k: int = 5) -> EvalReport:
-    bodies = session.scalars(select(Filing.body)).all()
+    squashed = [WHITESPACE_RE.sub(" ", body) for body in session.scalars(select(Filing.body))]
     report = EvalReport()
     hits = faithful = keyword_hits = refusals_correct = 0
 
@@ -96,10 +98,8 @@ def run_evals(session: Session, cases: list[EvalCase], top_k: int = 5) -> EvalRe
 
         result = answer_question(session, case.question, top_k=top_k)
         if not result.refused:
-            sentences = [
-                s.strip() for s in MARKER_RE.sub("", result.answer).split(". ") if len(s) > 20
-            ]
-            if all(any(sentence[:80] in body for body in bodies) for sentence in sentences):
+            evidence = [WHITESPACE_RE.sub(" ", e).strip() for e in result.evidence]
+            if evidence and all(any(e in body for body in squashed) for e in evidence):
                 faithful += 1
             else:
                 report.failures.append(f"unfaithful answer: {case.question}")
@@ -172,6 +172,18 @@ def main() -> None:
         report = run_evals(session, cases, args.top_k)
 
     print(json.dumps(report.as_dict(), indent=2))
+
+    from filingsdesk.rag.claude_answerer import TALLY
+
+    if TALLY.calls:
+        latencies = sorted(TALLY.latencies)
+        usage = {
+            "claude_calls": TALLY.calls,
+            **{f"total_{kind}": count for kind, count in TALLY.tokens.items()},
+            "mean_latency_s": round(sum(latencies) / len(latencies), 2),
+            "p95_latency_s": round(latencies[int(0.95 * (len(latencies) - 1))], 2),
+        }
+        print(json.dumps(usage, indent=2))
 
     ok = True
     if args.min_hit_rate is not None and report.retrieval_hit_rate < args.min_hit_rate:

@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +29,17 @@ class Settings(BaseSettings):
     # the fixture corpus; the eval harness re-validates them in CI.
     similarity_refusal_floor: float = 0.15
     similarity_confidence_floor: float = 0.30
+
+    # Answer generation (ADR-0006). Extractive by default so CI stays keyless;
+    # "claude" needs ANTHROPIC_API_KEY and falls back to extractive on any API failure.
+    # LLM_* rather than CLAUDE_*: Claude Code exports CLAUDE_EFFORT into child shells.
+    answer_provider: str = "extractive"  # extractive | claude
+    anthropic_api_key: SecretStr | None = None
+    llm_model: str = "claude-opus-5-5"
+    llm_effort: str = "low"  # short grounded answers don't need deep thinking
+    llm_max_tokens: int = 4096  # thinking counts against this; answers are ~4 claims
+    llm_timeout_seconds: float = 30.0
+    llm_max_retries: int = 2
 
     # Ingestion
     sec_user_agent: str = "FilingsDesk research project dasabhigyan14@gmail.com"

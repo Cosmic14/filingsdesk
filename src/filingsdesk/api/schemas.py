@@ -74,3 +74,4 @@ class AskResponse(BaseModel):
     confidence: str
     refused: bool
     injection_flagged: bool
+    answered_by: str

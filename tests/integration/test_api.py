@@ -114,3 +114,43 @@ def test_metrics_endpoint_exposes_counters(client, seeded):
     text = client.get("/metrics").text
     assert "filingsdesk_http_requests_total" in text
     assert "filingsdesk_cache_misses_total" in text
+
+
+class StubAnswerer:
+    """Stands in for Claude: quotes the top chunk, or fails like the API would."""
+
+    def __init__(self, fail=False):
+        self.fail = fail
+
+    def answer(self, question, chunks):
+        from filingsdesk.rag.claude_answerer import AnswererError, Claim, ClaudeResult
+
+        if self.fail:
+            raise AnswererError("APITimeoutError: Request timed out.")
+        top = chunks[0]
+        claim = Claim(text="Summarised by the model.", source=1, quote=top.text[:80])
+        return ClaudeResult(True, [(claim, top)], 0, {}, 0.0)
+
+
+@pytest.fixture
+def claude_provider(monkeypatch):
+    import filingsdesk.rag.claude_answerer as claude_answerer
+    from filingsdesk.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "answer_provider", "claude")
+    return lambda answerer: monkeypatch.setattr(claude_answerer, "_answerer", answerer)
+
+
+def test_ask_with_claude_returns_model_answer_with_citation(client, seeded, claude_provider):
+    claude_provider(StubAnswerer())
+    body = client.post("/ask", json={"question": "How fast did Apple's Services grow?"}).json()
+    assert body["answered_by"] == "claude"
+    assert body["answer"] == "Summarised by the model. [1]"
+    assert len(body["citations"]) == 1
+
+
+def test_ask_falls_back_to_extractive_when_claude_fails(client, seeded, claude_provider):
+    claude_provider(StubAnswerer(fail=True))
+    body = client.post("/ask", json={"question": "How fast did Apple's Services grow?"}).json()
+    assert body["answered_by"] == "extractive"
+    assert body["refused"] is False and body["citations"]

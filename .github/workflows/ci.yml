@@ -14,7 +14,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,llm]"
       - run: ruff check .
       - run: ruff format --check .
 
@@ -46,7 +46,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[dev]"
+      - run: pip install -e ".[dev,llm]"
       - run: alembic upgrade head
       - run: pytest --cov --cov-report=xml --cov-fail-under=80
       - name: RAG evals

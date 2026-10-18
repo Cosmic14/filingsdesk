@@ -2,20 +2,24 @@
 
 Default answerer is extractive: it selects the retrieved sentences most similar to the
 question and quotes them with numbered citations. It cannot hallucinate — every sentence
-in the answer exists verbatim in a cited filing chunk. An LLM answerer can be slotted in
-behind the same interface without touching guardrails or the API.
+in the answer exists verbatim in a cited filing chunk. With ANSWER_PROVIDER=claude,
+Claude writes the answer behind the same guardrails (claude_answerer.py), and any failure
+falls back to the extractive path.
 """
 
 import re
 from dataclasses import dataclass, field
 
 import numpy as np
+import structlog
 from sqlalchemy.orm import Session
 
 from filingsdesk.config import get_settings
 from filingsdesk.rag.embeddings import STOPWORDS, TOKEN_RE, get_embedder
 from filingsdesk.rag.guardrails import Confidence, assess_confidence
 from filingsdesk.rag.retrieval import RetrievedChunk, retrieve
+
+log = structlog.get_logger(__name__)
 
 SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
@@ -42,6 +46,63 @@ class AnswerResult:
     confidence: str = Confidence.OK
     refused: bool = False
     injection_flagged: bool = False
+    answered_by: str = "extractive"
+    # Verbatim source text backing the answer; the eval harness checks it against filings.
+    evidence: list[str] = field(default_factory=list)
+
+
+def _cite(chunk: RetrievedChunk, citations: list[Citation], markers: dict[int, int]) -> int:
+    if chunk.chunk_id not in markers:
+        markers[chunk.chunk_id] = len(markers) + 1
+        citations.append(
+            Citation(
+                marker=markers[chunk.chunk_id],
+                accession_no=chunk.accession_no,
+                symbol=chunk.symbol,
+                form_type=chunk.form_type,
+                section=chunk.section,
+                similarity=round(chunk.similarity, 4),
+            )
+        )
+    return markers[chunk.chunk_id]
+
+
+def _answer_with_claude(
+    question: str, chunks: list[RetrievedChunk], confidence: Confidence, flagged: bool
+) -> AnswerResult | None:
+    """None means "use the extractive answer instead"."""
+    from filingsdesk.rag.claude_answerer import AnswererError, get_claude_answerer
+
+    try:
+        result = get_claude_answerer().answer(question, chunks)
+    except AnswererError as exc:
+        log.warning("answer.claude_fallback", reason=str(exc))
+        return None
+    if not result.claims:
+        if result.answerable or result.dropped:
+            log.warning("answer.claude_ungrounded_fallback", dropped=result.dropped)
+            return None
+        return AnswerResult(
+            answer=REFUSAL_TEXT,
+            confidence=Confidence.REFUSE,
+            refused=True,
+            injection_flagged=flagged,
+            answered_by="claude",
+        )
+
+    citations: list[Citation] = []
+    markers: dict[int, int] = {}
+    parts = [f"{claim.text} [{_cite(chunk, citations, markers)}]" for claim, chunk in result.claims]
+    return AnswerResult(
+        answer=" ".join(parts),
+        citations=citations,
+        # A dropped claim means the model said something its sources didn't back up.
+        confidence=Confidence.LOW if result.dropped else confidence,
+        refused=False,
+        injection_flagged=flagged,
+        answered_by="claude",
+        evidence=[claim.quote for claim, _ in result.claims],
+    )
 
 
 def _best_sentences(
@@ -100,29 +161,19 @@ def answer_question(session: Session, question: str, top_k: int | None = None) -
             injection_flagged=bool(flagged),
         )
 
-    citations: list[Citation] = []
-    marker_by_chunk: dict[int, int] = {}
-    parts: list[str] = []
-    for sentence, chunk in selected:
-        if chunk.chunk_id not in marker_by_chunk:
-            marker = len(marker_by_chunk) + 1
-            marker_by_chunk[chunk.chunk_id] = marker
-            citations.append(
-                Citation(
-                    marker=marker,
-                    accession_no=chunk.accession_no,
-                    symbol=chunk.symbol,
-                    form_type=chunk.form_type,
-                    section=chunk.section,
-                    similarity=round(chunk.similarity, 4),
-                )
-            )
-        parts.append(f"{sentence} [{marker_by_chunk[chunk.chunk_id]}]")
+    if settings.answer_provider == "claude":
+        claude_result = _answer_with_claude(question, chunks, confidence, bool(flagged))
+        if claude_result is not None:
+            return claude_result
 
+    citations: list[Citation] = []
+    markers: dict[int, int] = {}
+    parts = [f"{sentence} [{_cite(chunk, citations, markers)}]" for sentence, chunk in selected]
     return AnswerResult(
         answer=" ".join(parts),
         citations=citations,
         confidence=confidence,
         refused=False,
         injection_flagged=bool(flagged),
+        evidence=[sentence for sentence, _ in selected],
     )
