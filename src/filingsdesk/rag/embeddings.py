@@ -119,6 +119,10 @@ class FastEmbedEmbedder:
     `embed_query`. The model downloads once (~130 MB) to the fastembed cache.
     """
 
+    # fastembed's default batch of 256 long chunks was OOM-killed in a 6 GB container;
+    # small batches keep memory flat however many filings are ingested.
+    batch_size = 32
+
     def __init__(self, model: str = "BAAI/bge-small-en-v1.5", dim: int = 384) -> None:
         from fastembed import TextEmbedding
 
@@ -128,7 +132,8 @@ class FastEmbedEmbedder:
     def embed(self, texts: list[str]) -> np.ndarray:
         if not texts:
             return np.zeros((0, self.dim), dtype=np.float32)
-        return np.array(list(self._model.passage_embed(texts)), dtype=np.float32)
+        vectors = self._model.passage_embed(texts, batch_size=self.batch_size)
+        return np.array(list(vectors), dtype=np.float32)
 
     def embed_query(self, text: str) -> np.ndarray:
         return np.array(next(iter(self._model.query_embed(text))), dtype=np.float32)

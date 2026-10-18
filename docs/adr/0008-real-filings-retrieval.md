@@ -37,7 +37,9 @@ AAPL, MSFT, NVDA, AMZN, GOOGL: ~2,600 chunks) it fell apart:
 Fixture evals in CI are unchanged: hit rate 1.00, faithfulness 1.00.
 
 ## Trade-offs
-Embedding 2,600 chunks with fastembed takes ~4 minutes on a laptop CPU; queries take
+Embedding 2,600 chunks with fastembed takes ~4 minutes on a laptop CPU. fastembed's default
+batch of 256 long chunks was OOM-killed (exit 137) in the 6 GB Docker VM and rolled back the
+whole ingest; batches of 32 keep the worker at ~1.4 GB. queries take
 ~4-6 s end to end (most of it the Claude call). Vectors from different embedding providers
 must not share a database, so the live stack uses its own volume. Real figures change every
 quarter, so the live smoke test checks behaviour (answered with citations, refused when it
