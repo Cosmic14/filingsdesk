@@ -1,0 +1,14 @@
+# Builds the API and ingestion images on Google's (amd64) builders and pushes them to
+# Artifact Registry. Run from the repo root: gcloud builds submit --config deploy/gcp/cloudbuild.yaml
+substitutions:
+  _REGISTRY: europe-west2-docker.pkg.dev/${PROJECT_ID}/filingsdesk
+options:
+  dynamicSubstitutions: true # lets _REGISTRY reference the built-in PROJECT_ID
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "--target", "api", "-t", "${_REGISTRY}/api:latest", "."]
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "--target", "ingestion", "-t", "${_REGISTRY}/ingestion:latest", "."]
+images:
+  - ${_REGISTRY}/api:latest
+  - ${_REGISTRY}/ingestion:latest

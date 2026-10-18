@@ -1,0 +1,7 @@
+# What `gcloud builds submit` uploads: the repo minus local-only files.
+#!include:.gitignore
+.git
+.github
+deploy/gcp/.terraform
+deploy/gcp/*.tfstate*
+deploy/gcp/terraform.tfvars
