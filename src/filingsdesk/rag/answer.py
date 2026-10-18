@@ -15,7 +15,8 @@ import structlog
 from sqlalchemy.orm import Session
 
 from filingsdesk.config import get_settings
-from filingsdesk.rag.embeddings import STOPWORDS, TOKEN_RE, get_embedder
+from filingsdesk.rag.companies import detect_companies
+from filingsdesk.rag.embeddings import STOPWORDS, TOKEN_RE, embed_query, get_embedder
 from filingsdesk.rag.guardrails import Confidence, assess_confidence
 from filingsdesk.rag.retrieval import RetrievedChunk, retrieve
 
@@ -37,6 +38,7 @@ class Citation:
     form_type: str
     section: str | None
     similarity: float
+    url: str | None = None
 
 
 @dataclass
@@ -62,6 +64,7 @@ def _cite(chunk: RetrievedChunk, citations: list[Citation], markers: dict[int, i
                 form_type=chunk.form_type,
                 section=chunk.section,
                 similarity=round(chunk.similarity, 4),
+                url=chunk.source_url,
             )
         )
     return markers[chunk.chunk_id]
@@ -119,9 +122,8 @@ def _best_sentences(
                 candidates.append((sentence, chunk))
     if not candidates:
         return [], 0.0
-    embedder = get_embedder()
-    question_vec = embedder.embed([question])[0]
-    sentence_vecs = embedder.embed([sentence for sentence, _ in candidates])
+    question_vec = embed_query(question)
+    sentence_vecs = get_embedder().embed([sentence for sentence, _ in candidates])
     cosines = sentence_vecs @ question_vec
     # Pivoted length correction: pure cosine over-rewards very short sentences (one
     # matching token in a 4-token fragment beats a fact-dense sentence). Weight by a
@@ -141,7 +143,11 @@ def _best_sentences(
 
 def answer_question(session: Session, question: str, top_k: int | None = None) -> AnswerResult:
     settings = get_settings()
-    chunks = retrieve(session, question, top_k or settings.retrieval_top_k)
+    # Name a company and only its filings are searched; otherwise search everything.
+    symbols, keyword_query = detect_companies(session, question)
+    chunks = retrieve(
+        session, question, top_k or settings.retrieval_top_k, symbols or None, keyword_query
+    )
 
     # Quarantine chunks that try to address the assistant (prompt injection).
     flagged = [chunk for chunk in chunks if chunk.injection_flags]

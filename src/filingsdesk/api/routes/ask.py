@@ -19,4 +19,5 @@ def ask(request: AskRequest, session: Session = Depends(get_session)) -> AskResp
         refused=result.refused,
         injection_flagged=result.injection_flagged,
         answered_by=result.answered_by,
+        evidence=result.evidence,
     )

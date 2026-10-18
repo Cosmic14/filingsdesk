@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # RAG (ADR-0004/0005/0006)
     vector_backend: str = "auto"  # auto | pgvector | numpy
     embedding_dim: int = 384
+    # hashing = keyless lexical default (CI); fastembed = local semantic model (bge-small,
+    # 384-dim, ONNX). Vectors from different providers must not share a database.
+    embedding_provider: str = "hashing"
+    # Extra names that point at a ticker, on top of the registrant names from EDGAR.
+    company_aliases: str = "GOOGL:google,AMZN:aws"
     chunking_strategy: str = "section"  # section | fixed
     chunk_size_chars: int = 1600
     chunk_overlap_chars: int = 200

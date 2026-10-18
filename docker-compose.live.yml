@@ -1,0 +1,31 @@
+# Real data, locally: SEC EDGAR filings + yfinance prices, semantic retrieval, Claude answers.
+#   docker compose -f docker-compose.yml -f docker-compose.live.yml up --build
+# Needs ANTHROPIC_API_KEY in .env (git-ignored). Nothing here is exposed beyond localhost.
+# First start ingests 15 filings and embeds them (a few minutes); the worker then refreshes
+# daily after the US close. Separate volume, so live and fixture data never mix.
+services:
+  postgres:
+    volumes:
+      - pgdata_live:/var/lib/postgresql/data
+
+  api:
+    env_file: [.env]
+    environment:
+      ANSWER_PROVIDER: claude
+      EMBEDDING_PROVIDER: fastembed
+      RETRIEVAL_TOP_K: "8"
+      FASTEMBED_CACHE_PATH: /models
+    volumes:
+      - models:/models
+
+  worker:
+    environment:
+      INGEST_FIXTURES: "0"
+      EMBEDDING_PROVIDER: fastembed
+      FASTEMBED_CACHE_PATH: /models
+    volumes:
+      - models:/models
+
+volumes:
+  pgdata_live:
+  models:

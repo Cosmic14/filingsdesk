@@ -93,3 +93,10 @@ def test_injected_document_is_quarantined(corpus):
     )
     assert result.injection_flagged
     assert "system prompt" not in result.answer or result.refused
+
+
+def test_retrieval_can_be_limited_to_one_company(corpus):
+    from filingsdesk.rag.retrieval import retrieve
+
+    chunks = retrieve(corpus, "revenue growth and risk factors", top_k=5, symbols=["MSFT"])
+    assert chunks and {chunk.symbol for chunk in chunks} == {"MSFT"}

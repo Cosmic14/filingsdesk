@@ -23,11 +23,13 @@ log = structlog.get_logger(__name__)
 
 
 def upsert_instrument(session: Session, symbol: str, name: str | None = None) -> Instrument:
-    stmt = (
-        insert(Instrument)
-        .values(symbol=symbol.upper(), name=name or symbol.upper(), currency="USD")
-        .on_conflict_do_nothing(index_elements=["symbol"])
+    stmt = insert(Instrument).values(
+        symbol=symbol.upper(), name=name or symbol.upper(), currency="USD"
     )
+    if name:  # a registrant name from EDGAR replaces the ticker placeholder
+        stmt = stmt.on_conflict_do_update(index_elements=["symbol"], set_={"name": name})
+    else:
+        stmt = stmt.on_conflict_do_nothing(index_elements=["symbol"])
     session.execute(stmt)
     return session.scalars(select(Instrument).where(Instrument.symbol == symbol.upper())).one()
 
@@ -73,7 +75,7 @@ def ingest_filings(session: Session, records: list[FilingRecord]) -> int:
     settings = get_settings()
     ingested = 0
     for record in records:
-        instrument = upsert_instrument(session, record.symbol)
+        instrument = upsert_instrument(session, record.symbol, record.company)
         existing = session.scalars(
             select(Filing).where(Filing.accession_no == record.accession_no)
         ).one_or_none()

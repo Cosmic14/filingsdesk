@@ -76,21 +76,35 @@ with ask_tab:
         "Question", placeholder="How fast did Apple's Services segment net sales grow?"
     )
     if question:
-        response = httpx.post(f"{API_URL}/ask", json={"question": question}, timeout=30)
+        with st.spinner("Searching the filings..."):
+            response = httpx.post(f"{API_URL}/ask", json={"question": question}, timeout=60)
         if response.status_code != 200:
             st.error(response.text)
         else:
             body = response.json()
+            answered_by = body.get("answered_by", "extractive")
+            st.caption(
+                f"Answered by **{'Claude' if answered_by == 'claude' else 'extractive quotes'}**"
+                f" · confidence **{body['confidence']}**"
+            )
             if body["refused"]:
                 st.warning(body["answer"])
             else:
                 if body["confidence"] == "low":
-                    st.info("Low retrieval confidence — treat this answer with care.")
+                    st.info("Low confidence: a claim was dropped or retrieval was weak.")
                 st.write(body["answer"])
+                if body.get("evidence"):
+                    with st.expander(
+                        "Verified quotes (each checked word for word against its source)"
+                    ):
+                        for quote in body["evidence"]:
+                            st.markdown(f"> {quote}")
                 st.subheader("Sources")
                 for citation in body["citations"]:
+                    label = f"{citation['symbol']} {citation['form_type']}"
+                    if citation.get("url"):
+                        label = f"[{label}]({citation['url']})"
                     st.markdown(
-                        f"**[{citation['marker']}]** {citation['symbol']} "
-                        f"{citation['form_type']} · {citation['section'] or 'n/a'} · "
-                        f"`{citation['accession_no']}` · similarity {citation['similarity']:.2f}"
+                        f"**[{citation['marker']}]** {label} · {citation['section'] or 'n/a'} · "
+                        f"`{citation['accession_no']}`"
                     )

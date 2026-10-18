@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 from filingsdesk.db import Filing
 from filingsdesk.db.session import session_scope
 from filingsdesk.rag.answer import answer_question
+from filingsdesk.rag.companies import detect_companies
 from filingsdesk.rag.retrieval import retrieve
 
 WHITESPACE_RE = re.compile(r"\s+")
@@ -90,7 +91,8 @@ def run_evals(session: Session, cases: list[EvalCase], top_k: int = 5) -> EvalRe
 
         report.n_answerable += 1
 
-        retrieved = retrieve(session, case.question, top_k=top_k)
+        symbols, keyword_query = detect_companies(session, case.question)
+        retrieved = retrieve(session, case.question, top_k, symbols or None, keyword_query)
         if any(chunk.accession_no == case.source_accession for chunk in retrieved):
             hits += 1
         else:

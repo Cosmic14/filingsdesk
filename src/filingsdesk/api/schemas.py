@@ -61,6 +61,7 @@ class CitationOut(BaseModel):
     form_type: str
     section: str | None
     similarity: float
+    url: str | None = None
 
 
 class AskRequest(BaseModel):
@@ -75,3 +76,4 @@ class AskResponse(BaseModel):
     refused: bool
     injection_flagged: bool
     answered_by: str
+    evidence: list[str] = []

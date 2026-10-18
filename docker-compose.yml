@@ -29,7 +29,7 @@ services:
       DATABASE_URL: postgresql+psycopg://filingsdesk:filingsdesk@postgres:5432/filingsdesk
       REDIS_URL: redis://redis:6379/0
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"  # localhost only
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +61,7 @@ services:
     environment:
       FILINGSDESK_API_URL: http://api:8000
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501"
     depends_on:
       api:
         condition: service_healthy

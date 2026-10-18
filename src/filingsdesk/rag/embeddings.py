@@ -112,12 +112,45 @@ class HashingEmbedder:
         return vectors / norms
 
 
+class FastEmbedEmbedder:
+    """Local semantic embeddings (BAAI bge-small-en-v1.5 via ONNX): no API key, no torch.
+
+    bge is trained with separate query and passage modes, so queries go through
+    `embed_query`. The model downloads once (~130 MB) to the fastembed cache.
+    """
+
+    def __init__(self, model: str = "BAAI/bge-small-en-v1.5", dim: int = 384) -> None:
+        from fastembed import TextEmbedding
+
+        self.dim = dim
+        self._model = TextEmbedding(model_name=model)
+
+    def embed(self, texts: list[str]) -> np.ndarray:
+        if not texts:
+            return np.zeros((0, self.dim), dtype=np.float32)
+        return np.array(list(self._model.passage_embed(texts)), dtype=np.float32)
+
+    def embed_query(self, text: str) -> np.ndarray:
+        return np.array(next(iter(self._model.query_embed(text))), dtype=np.float32)
+
+
 _embedder: Embedder | None = None
 
 
 def get_embedder() -> Embedder:
-    """Default embedder for the configured dimension. Cloud providers slot in here."""
+    """Embedder per EMBEDDING_PROVIDER: keyless hashing by default, or local fastembed."""
     global _embedder
     if _embedder is None:
-        _embedder = HashingEmbedder(dim=get_settings().embedding_dim)
+        settings = get_settings()
+        if settings.embedding_provider == "fastembed":
+            _embedder = FastEmbedEmbedder(dim=settings.embedding_dim)
+        else:
+            _embedder = HashingEmbedder(dim=settings.embedding_dim)
     return _embedder
+
+
+def embed_query(text: str) -> np.ndarray:
+    embedder = get_embedder()
+    if hasattr(embedder, "embed_query"):
+        return embedder.embed_query(text)
+    return embedder.embed([text])[0]

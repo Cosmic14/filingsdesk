@@ -52,6 +52,19 @@ No Redis? No pgvector? Fine — the cache falls back to in-memory and the vector
 exact numpy search, with log lines saying so. CI runs the full stack.
 </details>
 
+## Run it on real SEC data (local)
+
+```bash
+echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env        # git-ignored
+docker compose -f docker-compose.yml -f docker-compose.live.yml up --build
+python scripts/live_smoke.py                       # once the worker has finished ingesting
+```
+
+The live override pulls the latest 10-K and two 10-Qs for each company from SEC EDGAR plus
+real prices, embeds them with a local semantic model (fastembed, no key), searches with
+hybrid dense + full-text retrieval scoped to the company a question names, and answers with
+Claude (every quote verified in code). Ports bind to localhost only. See ADR-0008.
+
 ## Try it
 
 ```bash
@@ -134,6 +147,7 @@ Every significant choice has an ADR written *before* the component:
 | [0005](docs/adr/0005-chunking-strategy.md) | Section-aware chunking — *measured* against fixed-size |
 | [0006](docs/adr/0006-keyless-ai-providers.md) | Keyless-by-default AI providers; extractive answers |
 | [0007](docs/adr/0007-claude-answerer.md) | Claude answerer: the model writes, code verifies every quote |
+| [0008](docs/adr/0008-real-filings-retrieval.md) | Real filings: cleaner text, company-aware hybrid retrieval, local semantic embeddings |
 
 Full architecture and failure-mode analysis: [docs/design.md](docs/design.md).
 Deployment (compose / Fly.io): [docs/deploy.md](docs/deploy.md).

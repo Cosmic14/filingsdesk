@@ -40,6 +40,7 @@ class FilingRecord:
     title: str
     body: str
     source_url: str | None = None
+    company: str | None = None  # EDGAR's registrant name, e.g. "Apple Inc."
 
 
 def parse_submissions(payload: dict, symbol: str, forms: set[str]) -> list[dict]:
@@ -73,7 +74,12 @@ def parse_submissions(payload: dict, symbol: str, forms: set[str]) -> list[dict]
 
 
 class _TextExtractor(HTMLParser):
-    _SKIP = {"script", "style"}
+    # ix:header is the hidden inline-XBRL fact block at the top of every modern filing.
+    _SKIP = {"script", "style", "ix:header"}
+    # Without breaks at block boundaries, "...2026.Rest of Asia" runs together and the
+    # "ITEM 1A" lines that section-aware chunking keys on disappear.
+    _BLOCK = {"p", "div", "br", "tr", "li", "table", "h1", "h2", "h3", "h4", "h5", "h6"}
+    _CELL = {"td", "th"}
 
     def __init__(self) -> None:
         super().__init__()
@@ -83,18 +89,25 @@ class _TextExtractor(HTMLParser):
     def handle_starttag(self, tag, attrs):
         if tag in self._SKIP:
             self._skip_depth += 1
+        elif tag in self._BLOCK:
+            self._parts.append("\n")
 
     def handle_endtag(self, tag):
         if tag in self._SKIP and self._skip_depth:
             self._skip_depth -= 1
+        elif tag in self._BLOCK:
+            self._parts.append("\n")
+        elif tag in self._CELL:
+            self._parts.append(" | ")
 
     def handle_data(self, data):
         if not self._skip_depth:
             self._parts.append(data)
 
     def text(self) -> str:
-        raw = "".join(self._parts)
-        return re.sub(r"\n{3,}", "\n\n", re.sub(r"[ \t]+", " ", raw)).strip()
+        raw = "".join(self._parts).replace("\xa0", " ")
+        lines = (re.sub(r"[ \t]+", " ", line).strip(" |") for line in raw.split("\n"))
+        return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()
 
 
 def html_to_text(html: str) -> str:
@@ -110,24 +123,35 @@ def _get(client: httpx.Client, url: str) -> httpx.Response:
     return response
 
 
-def fetch_recent_filings(
-    symbol: str, forms: set[str] | None = None, limit: int = 3
-) -> list[FilingRecord]:
-    """Fetch the most recent `limit` filings of the given forms for a ticker."""
-    forms = forms or {"10-K", "10-Q"}
+DEFAULT_PER_FORM = {"10-K": 1, "10-Q": 2}  # latest annual report + two latest quarters
+
+
+def select_latest(rows: list[dict], per_form: dict[str, int]) -> list[dict]:
+    """First N rows of each form; EDGAR lists `filings.recent` newest first."""
+    taken: dict[str, int] = {}
+    selected = []
+    for row in rows:
+        if taken.get(row["form_type"], 0) < per_form.get(row["form_type"], 0):
+            taken[row["form_type"]] = taken.get(row["form_type"], 0) + 1
+            selected.append(row)
+    return selected
+
+
+def fetch_recent_filings(symbol: str, per_form: dict[str, int] | None = None) -> list[FilingRecord]:
+    """Fetch the latest filings per form type for a ticker (default: 1 x 10-K, 2 x 10-Q)."""
+    per_form = per_form or DEFAULT_PER_FORM
+    forms = set(per_form)
     headers = {"User-Agent": get_settings().sec_user_agent}
     with httpx.Client(headers=headers, timeout=30) as client:
         tickers = _get(client, EDGAR_TICKERS_URL).json()
-        cik = next(
-            (row["cik_str"] for row in tickers.values() if row["ticker"] == symbol.upper()),
-            None,
-        )
-        if cik is None:
+        match = next((row for row in tickers.values() if row["ticker"] == symbol.upper()), None)
+        if match is None:
             log.warning("filings.unknown_ticker", symbol=symbol)
             return []
+        cik, company = match["cik_str"], match.get("title")
 
         payload = _get(client, EDGAR_SUBMISSIONS_URL.format(cik=cik)).json()
-        rows = parse_submissions(payload, symbol, forms)[:limit]
+        rows = select_latest(parse_submissions(payload, symbol, forms), per_form)
 
         records = []
         for row in rows:
@@ -146,6 +170,7 @@ def fetch_recent_filings(
                     title=row["description"],
                     body=body,
                     source_url=doc_url,
+                    company=company,
                 )
             )
             log.info("filings.fetched", symbol=symbol, accession=row["accession_no"])

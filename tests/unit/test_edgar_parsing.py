@@ -1,6 +1,11 @@
 """EDGAR payload parsing and HTML text extraction — pure functions, no network."""
 
-from filingsdesk.ingestion.filings import html_to_text, load_fixture_filings, parse_submissions
+from filingsdesk.ingestion.filings import (
+    html_to_text,
+    load_fixture_filings,
+    parse_submissions,
+    select_latest,
+)
 
 SUBMISSIONS_PAYLOAD = {
     "filings": {
@@ -41,6 +46,29 @@ def test_html_to_text_strips_tags_and_scripts():
     assert "We sell things." in text
     assert "var x" not in text
     assert "p{}" not in text
+
+
+def test_html_to_text_keeps_block_and_cell_boundaries():
+    html = (
+        "<body><ix:header><ix:hidden>dei:EntityName</ix:hidden></ix:header>"
+        "<div>Japan net sales fell in 2026.</div><div>Rest of Asia rose.</div>"
+        "<h2>ITEM 1A. RISK FACTORS</h2>"
+        "<table><tr><td>Services</td><td>$&#160;30,739</td></tr></table></body>"
+    )
+    lines = html_to_text(html).splitlines()
+    assert "Japan net sales fell in 2026." in lines  # no longer "2026.Rest of Asia"
+    assert "ITEM 1A. RISK FACTORS" in lines  # section-aware chunking keys on this line
+    assert "Services | $ 30,739" in lines
+    assert "EntityName" not in html_to_text(html)
+
+
+def test_select_latest_takes_newest_per_form():
+    rows = [
+        {"form_type": f, "accession_no": a}
+        for f, a in [("10-Q", "q3"), ("8-K", "x"), ("10-Q", "q2"), ("10-Q", "q1"), ("10-K", "k")]
+    ]
+    picked = select_latest(rows, {"10-K": 1, "10-Q": 2})
+    assert [r["accession_no"] for r in picked] == ["q3", "q2", "k"]
 
 
 def test_fixture_filings_load_and_are_labelled_synthetic():

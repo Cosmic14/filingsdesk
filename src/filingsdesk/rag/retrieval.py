@@ -21,10 +21,17 @@ class RetrievedChunk:
     text: str
     similarity: float
     injection_flags: tuple[str, ...] = ()
+    source_url: str | None = None
 
 
-def retrieve(session: Session, question: str, top_k: int = 5) -> list[RetrievedChunk]:
-    hits = get_vector_store().search(session, question, top_k)
+def retrieve(
+    session: Session,
+    question: str,
+    top_k: int = 5,
+    symbols: list[str] | None = None,
+    keyword_query: str | None = None,
+) -> list[RetrievedChunk]:
+    hits = get_vector_store().search(session, question, top_k, symbols, keyword_query)
     if not hits:
         return []
     by_id = dict(hits)
@@ -45,6 +52,7 @@ def retrieve(session: Session, question: str, top_k: int = 5) -> list[RetrievedC
             text=chunk.text,
             similarity=by_id[chunk.id],
             injection_flags=tuple(screen_for_injection(chunk.text)),
+            source_url=filing.source_url,
         )
         for chunk, filing, symbol in rows
     ]
